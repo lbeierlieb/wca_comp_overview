@@ -50,6 +50,14 @@ fn main() {
     }
 }
 
+fn get_competition_title(html: &Html) -> Option<String> {
+    let selector = Selector::parse(r#"h3"#).unwrap();
+
+    html.select(&selector)
+        .next()
+        .map(|elem| elem.text().collect::<String>().trim().to_owned())
+}
+
 fn get_competitors_and_times(url: &str) -> Vec<Competitor> {
     let html = Html::parse_document(&get(url).unwrap().text().unwrap());
     get_competitors_and_times_from_html(&html)
