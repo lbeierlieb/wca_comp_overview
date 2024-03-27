@@ -21,6 +21,10 @@ struct Args {
     /// Do not retrieve times from user profile, instead generate random times
     #[arg(long, default_value_t = false)]
     debug: bool,
+
+    /// Do not open generated report in system default browser
+    #[arg(short, long, default_value_t = false)]
+    no_browser: bool,
 }
 
 struct Competitor {
@@ -45,7 +49,9 @@ fn main() -> Result<(), WCOError> {
     let path = format!("{}test.html", args.destination_directory);
 
     generate_report(&args.url, &path, args.debug)?;
-    webbrowser::open(&path)?;
+    if !args.no_browser {
+        webbrowser::open(&path)?;
+    }
     Ok(())
 }
 
