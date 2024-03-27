@@ -1,4 +1,5 @@
 use maud::html;
+use rand::prelude::*;
 use reqwest::blocking::get;
 use std::fs;
 use thiserror::Error;
@@ -16,6 +17,10 @@ struct Args {
     /// Directory where to save the report (default: current directory)
     #[arg(short, long, default_value_t = String::new())]
     destination_directory: String,
+
+    /// Do not retrieve times from user profile, instead generate random times
+    #[arg(long, default_value_t = false)]
+    debug: bool,
 }
 
 struct Competitor {
@@ -39,16 +44,20 @@ fn main() -> Result<(), WCOError> {
 
     let path = format!("{}test.html", args.destination_directory);
 
-    generate_report(&args.url, &path)?;
+    generate_report(&args.url, &path, args.debug)?;
     webbrowser::open(&path)?;
     Ok(())
 }
 
-fn generate_report(competitors_url: &str, out_path: &str) -> Result<(), WCOError> {
+fn generate_report(competitors_url: &str, out_path: &str, debug: bool) -> Result<(), WCOError> {
     let competitors_html = Html::parse_document(&get(competitors_url)?.text()?);
     let competition_title = get_competition_title(&competitors_html)?;
     let mut competitors = parse_competitors(&competitors_html);
-    retrieve_competitor_pr_avgs(&mut competitors)?;
+    if !debug {
+        retrieve_competitor_pr_avgs(&mut competitors)?;
+    } else {
+        set_random_competitor_pr_avgs(&mut competitors);
+    }
     let report = generate_report_html(&competition_title, &competitors);
     fs::write(out_path, report)?;
     Ok(())
@@ -105,6 +114,19 @@ fn parse_pr_3x3_avg(competitor_html: &Html) -> Option<String> {
         .select(&selector)
         .next()
         .map(|element| element.text().collect::<String>().trim().to_owned())
+}
+
+fn set_random_competitor_pr_avgs(competitors: &mut [Competitor]) {
+    let mut rng = rand::thread_rng();
+    for competitor in competitors {
+        if let Some(_) = &mut competitor.profile {
+            competitor.pr_3x3_avg = Some(format!(
+                "{}.{}",
+                rng.gen_range(7..40),
+                rng.gen_range(10..100)
+            ))
+        }
+    }
 }
 
 fn generate_report_html(competition_title: &str, competitor_data: &[Competitor]) -> String {
