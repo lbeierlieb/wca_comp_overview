@@ -34,6 +34,10 @@ fn main() {
     let competitor_data = get_competitors_and_times(
         "https://www.worldcubeassociation.org/competitions/HessenMiniOpen2024/registrations",
     );
+    //let competitor_data = vec![
+    //    Competitor::new("Hannah".into(), None),
+    //    Competitor::new("Hannah Otto".into(), Some("profile".into())),
+    //];
     let path = "test.html";
     let report = generate_report(&competitor_data);
 
@@ -97,9 +101,30 @@ fn get_best_3x3_avg_from_html(competitor_html: &Html) -> Option<String> {
 
 fn generate_report(competitor_data: &[Competitor]) -> String {
     let markup = html! {
-        ul {
-            @for competitor in competitor_data {
-                li { (competitor.name) (match &competitor.pr_3x3_avg { Some(time) => format!(": {}", time), None => "".to_string()}) }
+        html {
+            head {
+                title { "My Table" }
+
+                // Include the link to your CSS file
+                link rel="stylesheet" type="text/css" href="styles.css" {}
+            }
+            body {
+                table {
+                    @for competitor in competitor_data {
+                        tr {
+                            @if let Some(profile) = &competitor.profile {
+                                td {
+                                    a target="_blank" href=(format!("https://www.worldcubeassociation.org/{}", profile)) {
+                                        (competitor.name)
+                                    }
+                                }
+                            } @ else {
+                                td { (competitor.name) }
+                            }
+                            td { (match &competitor.pr_3x3_avg { Some(time) => format!("{}", time), None => "".to_string()}) }
+                        }
+                    }
+                }
             }
         }
     };
