@@ -3,7 +3,20 @@ use reqwest::blocking::get;
 use std::fs;
 use thiserror::Error;
 
+use clap::Parser;
 use scraper::{selectable::Selectable, Html, Selector};
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// URL of the competition's competitor list page
+    #[arg(index = 1)]
+    url: String,
+
+    /// Directory where to save the report (default: current directory)
+    #[arg(short, long, default_value_t = String::new())]
+    destination_directory: String,
+}
 
 struct Competitor {
     name: String,
@@ -22,11 +35,12 @@ impl Competitor {
 }
 
 fn main() -> Result<(), WCOError> {
-    let url = "https://www.worldcubeassociation.org/competitions/HessenMiniOpen2024/registrations";
-    let path = "test.html";
+    let args = Args::parse();
 
-    generate_report(&url, &path)?;
-    webbrowser::open(path)?;
+    let path = format!("{}test.html", args.destination_directory);
+
+    generate_report(&args.url, &path)?;
+    webbrowser::open(&path)?;
     Ok(())
 }
 
