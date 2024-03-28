@@ -1,7 +1,7 @@
 use maud::html;
 use rand::prelude::*;
 use reqwest::blocking::get;
-use std::fs;
+use std::{fs, ops::Add, time::Duration};
 use thiserror::Error;
 
 use clap::Parser;
@@ -30,7 +30,7 @@ struct Args {
 struct Competitor {
     name: String,
     profile: Option<String>,
-    pr_3x3_avg: Option<String>,
+    pr_3x3_avg: Option<Duration>,
 }
 
 impl Competitor {
@@ -106,31 +106,38 @@ fn retrieve_competitor_pr_avgs(competitors: &mut [Competitor]) -> Result<(), WCO
         if let Some(profile) = &mut competitor.profile {
             let url = format!("https://www.worldcubeassociation.org/{}", profile);
             let html = Html::parse_document(&get(url)?.text()?);
-            competitor.pr_3x3_avg = parse_pr_3x3_avg(&html);
+            competitor.pr_3x3_avg = parse_pr_3x3_avg(&html)?;
         }
     }
     Ok(())
 }
 
-fn parse_pr_3x3_avg(competitor_html: &Html) -> Option<String> {
+fn parse_pr_3x3_avg(competitor_html: &Html) -> Result<Option<Duration>, WCOError> {
     let selector = Selector::parse(r#"a[href="/results/rankings/333/average"]"#)
         .expect("Parsing known selector should not fail");
 
-    competitor_html
+    match competitor_html
         .select(&selector)
         .next()
         .map(|element| element.text().collect::<String>().trim().to_owned())
+    {
+        Some(time_str) => Ok(Some(parse_time(&time_str)?)),
+        None => Ok(None),
+    }
 }
 
 fn set_random_competitor_pr_avgs(competitors: &mut [Competitor]) {
     let mut rng = rand::thread_rng();
     for competitor in competitors {
         if let Some(_) = &mut competitor.profile {
-            competitor.pr_3x3_avg = Some(format!(
-                "{}.{}",
-                rng.gen_range(7..40),
-                rng.gen_range(10..100)
-            ))
+            competitor.pr_3x3_avg = Some(
+                parse_time(&format!(
+                    "{}.{}",
+                    rng.gen_range(7..40),
+                    rng.gen_range(10..100)
+                ))
+                .expect("Generated times should not fail to parse"),
+            )
         }
     }
 }
@@ -158,7 +165,7 @@ fn generate_report_html(competition_title: &str, competitor_data: &[Competitor])
                             } @ else {
                                 td { (competitor.name) }
                             }
-                            td { (match &competitor.pr_3x3_avg { Some(time) => format!("{}", time), None => "".to_string()}) }
+                            td { (match &competitor.pr_3x3_avg { Some(time) => format_time(time), None => "".to_string()}) }
                         }
                     }
                 }
@@ -166,6 +173,46 @@ fn generate_report_html(competition_title: &str, competitor_data: &[Competitor])
         }
     };
     markup.into_string()
+}
+
+fn parse_time(text: &str) -> Result<Duration, WCOError> {
+    let msg = format!("Cannot parse time from string \"{}\"", text);
+    let splits: Vec<_> = text.split(":").collect();
+    match splits.len() {
+        1 => parse_sub_minute_time(text),
+        2 => {
+            let sub_min = parse_sub_minute_time(splits[1])?;
+            match splits[0].parse::<u64>() {
+                Ok(mins) if mins < 60 => Ok(Duration::from_secs(mins * 60).add(sub_min)),
+                _ => Err(WCOError::ParsingError(msg)),
+            }
+        }
+        _ => Err(WCOError::ParsingError(msg)),
+    }
+}
+fn parse_sub_minute_time(text: &str) -> Result<Duration, WCOError> {
+    let msg = format!("Cannot parse sub-minute time from string \"{}\"", text);
+    let splits: Vec<_> = text.split(".").collect();
+    if splits.len() != 2 {
+        return Err(WCOError::ParsingError(msg));
+    }
+    let secs = splits[0].parse::<u64>();
+    let subsec = splits[1].parse::<u32>();
+    match (secs, subsec) {
+        (Ok(secs), Ok(subsec)) if secs < 60 && subsec < 100 => {
+            Ok(Duration::new(secs, subsec * 1000 * 1000 * 10))
+        }
+        _ => Err(WCOError::ParsingError(msg)),
+    }
+}
+fn format_time(time: &Duration) -> String {
+    let subsec = time.subsec_millis() / 10;
+    let sec = time.as_secs() % 60;
+    let min = time.as_secs() / 60;
+    match min {
+        0 => format!("{}.{:0>2}", sec, subsec),
+        _ => format!("{}:{:0>2}.{:0>2}", min, sec, subsec),
+    }
 }
 
 #[derive(Error, Debug)]
