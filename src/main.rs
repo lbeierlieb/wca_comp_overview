@@ -27,6 +27,7 @@ struct Args {
     no_browser: bool,
 }
 
+#[derive(Debug, Clone)]
 struct Competitor {
     name: String,
     profile: Option<String>,
@@ -143,6 +144,28 @@ fn set_random_competitor_pr_avgs(competitors: &mut [Competitor]) {
 }
 
 fn generate_report_html(competition_title: &str, competitor_data: &[Competitor]) -> String {
+    let mut competitors_no_profile = vec![];
+    let mut competitors_no_time = vec![];
+    let mut competitors_time = vec![];
+    for comp in competitor_data {
+        match comp {
+            Competitor {
+                name: _,
+                profile: None,
+                pr_3x3_avg: _,
+            } => competitors_no_profile.push(comp),
+            Competitor {
+                name: _,
+                profile: Some(_),
+                pr_3x3_avg: None,
+            } => competitors_no_time.push(comp),
+            _ => competitors_time.push(comp),
+        }
+    }
+    competitors_time.sort_by_key(|comp| comp.pr_3x3_avg);
+    let mut all_competitors = competitors_time;
+    all_competitors.append(&mut competitors_no_time);
+    all_competitors.append(&mut competitors_no_profile);
     let markup = html! {
         html {
             head {
@@ -154,7 +177,7 @@ fn generate_report_html(competition_title: &str, competitor_data: &[Competitor])
                     (competition_title)
                 }
                 table {
-                    @for competitor in competitor_data {
+                    @for competitor in all_competitors {
                         tr {
                             @if let Some(profile) = &competitor.profile {
                                 td {
