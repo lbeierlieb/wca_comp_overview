@@ -177,6 +177,14 @@ fn generate_report_html(competition_title: &str, competitor_data: &[Competitor])
                     (competition_title)
                 }
                 table {
+                    tr {
+                        th {
+                            "Competitor"
+                        }
+                        th {
+                            "3x3 PR Average"
+                        }
+                    }
                     @for competitor in all_competitors {
                         tr {
                             @if let Some(profile) = &competitor.profile {
