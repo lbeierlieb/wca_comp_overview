@@ -1,5 +1,6 @@
 use maud::html;
 use rand::prelude::*;
+use regex::Regex;
 use reqwest::blocking::get;
 use std::{fs, ops::Add, time::Duration};
 use thiserror::Error;
@@ -30,15 +31,15 @@ struct Args {
 #[derive(Debug, Clone)]
 struct Competitor {
     name: String,
-    profile: Option<String>,
+    wca_id: Option<String>,
     pr_3x3_avg: Option<Duration>,
 }
 
 impl Competitor {
-    fn new(name: String, profile: Option<String>) -> Self {
+    fn new(name: String, wca_id: Option<String>) -> Self {
         Competitor {
             name,
-            profile,
+            wca_id,
             pr_3x3_avg: None,
         }
     }
@@ -61,7 +62,7 @@ fn generate_report(competitors_url: &str, out_path: &str, debug: bool) -> Result
     let competition_title = get_competition_title(&competitors_html)?;
     let mut competitors = parse_competitors(&competitors_html);
     if !debug {
-        retrieve_competitor_pr_avgs(&mut competitors)?;
+        retrieve_competitor_pr_avgs_html(&mut competitors)?;
     } else {
         set_random_competitor_pr_avgs(&mut competitors);
     }
@@ -96,24 +97,29 @@ fn parse_competitors(competitors_list: &Html) -> Vec<Competitor> {
                 element
                     .select(&name_selector)
                     .next()
-                    .and_then(|elem| elem.value().attr("href").map(|str| str.to_owned())),
+                    .and_then(|elem| elem.value().attr("href").and_then(parse_wca_id)),
             )
         })
         .collect()
 }
 
-fn retrieve_competitor_pr_avgs(competitors: &mut [Competitor]) -> Result<(), WCOError> {
+fn parse_wca_id(profile_url: &str) -> Option<String> {
+    let re = Regex::new(r"/persons/([0-9]{4}[A-Z]{4}[0-9]{2})").unwrap();
+    re.captures(profile_url).map(|cap| cap[1].to_owned())
+}
+
+fn retrieve_competitor_pr_avgs_html(competitors: &mut [Competitor]) -> Result<(), WCOError> {
     for competitor in competitors {
-        if let Some(profile) = &mut competitor.profile {
-            let url = format!("https://www.worldcubeassociation.org/{}", profile);
+        if let Some(id) = &mut competitor.wca_id {
+            let url = format!("https://www.worldcubeassociation.org/persons/{}", id);
             let html = Html::parse_document(&get(url)?.text()?);
-            competitor.pr_3x3_avg = parse_pr_3x3_avg(&html)?;
+            competitor.pr_3x3_avg = parse_pr_3x3_avg_html(&html)?;
         }
     }
     Ok(())
 }
 
-fn parse_pr_3x3_avg(competitor_html: &Html) -> Result<Option<Duration>, WCOError> {
+fn parse_pr_3x3_avg_html(competitor_html: &Html) -> Result<Option<Duration>, WCOError> {
     let selector = Selector::parse(r#"a[href="/results/rankings/333/average"]"#)
         .expect("Parsing known selector should not fail");
 
@@ -130,7 +136,7 @@ fn parse_pr_3x3_avg(competitor_html: &Html) -> Result<Option<Duration>, WCOError
 fn set_random_competitor_pr_avgs(competitors: &mut [Competitor]) {
     let mut rng = rand::thread_rng();
     for competitor in competitors {
-        if let Some(_) = &mut competitor.profile {
+        if let Some(_) = &mut competitor.wca_id {
             competitor.pr_3x3_avg = Some(
                 parse_time(&format!(
                     "{}.{}",
@@ -144,28 +150,31 @@ fn set_random_competitor_pr_avgs(competitors: &mut [Competitor]) {
 }
 
 fn generate_report_html(competition_title: &str, competitor_data: &[Competitor]) -> String {
-    let mut competitors_no_profile = vec![];
+    let mut competitors_no_id = vec![];
     let mut competitors_no_time = vec![];
     let mut competitors_time = vec![];
     for comp in competitor_data {
         match comp {
             Competitor {
                 name: _,
-                profile: None,
+                wca_id: None,
                 pr_3x3_avg: _,
-            } => competitors_no_profile.push(comp),
+            } => competitors_no_id.push(comp),
             Competitor {
                 name: _,
-                profile: Some(_),
+                wca_id: Some(_),
                 pr_3x3_avg: None,
             } => competitors_no_time.push(comp),
             _ => competitors_time.push(comp),
         }
     }
+    let num_time = competitors_time.len();
+    let num_no_time = competitors_no_time.len();
+    let num_no_id = competitors_no_id.len();
     competitors_time.sort_by_key(|comp| comp.pr_3x3_avg);
     let mut all_competitors = competitors_time;
     all_competitors.append(&mut competitors_no_time);
-    all_competitors.append(&mut competitors_no_profile);
+    all_competitors.append(&mut competitors_no_id);
     let markup = html! {
         html {
             head {
@@ -173,30 +182,46 @@ fn generate_report_html(competition_title: &str, competitor_data: &[Competitor])
                 link rel="stylesheet" type="text/css" href="styles.css" {}
             }
             body {
-                h1 {
-                    (competition_title)
-                }
-                table {
-                    tr {
-                        th {
-                            "Competitor"
+                div class="container" {
+                    h1 {
+                        (competition_title)
+                    }
+                    p {
+                        "There is a total of " b { (all_competitors.len()) } " competitors registered. They consists of:"
+                    }
+                    ul {
+                        li {
+                            b { (num_time) } ", who have competed in 3x3 before"
                         }
-                        th {
-                            "3x3 PR Average"
+                        li {
+                            b { (num_no_time) } ", who have competed at WCA events before, but not in 3x3"
+                        }
+                        li {
+                            b { (num_no_id) } ", who have never competed at an WCA event before"
                         }
                     }
-                    @for competitor in all_competitors {
+                    table {
                         tr {
-                            @if let Some(profile) = &competitor.profile {
-                                td {
-                                    a target="_blank" href=(format!("https://www.worldcubeassociation.org/{}", profile)) {
-                                        (competitor.name)
-                                    }
-                                }
-                            } @ else {
-                                td { (competitor.name) }
+                            th {
+                                "Competitor"
                             }
-                            td { (match &competitor.pr_3x3_avg { Some(time) => format_time(time), None => "".to_string()}) }
+                            th {
+                                "3x3 PR Average"
+                            }
+                        }
+                        @for competitor in all_competitors {
+                            tr {
+                                @if let Some(id) = &competitor.wca_id {
+                                    td {
+                                        a target="_blank" href=(format!("https://www.worldcubeassociation.org/persons/{}", id)) {
+                                            (competitor.name)
+                                        }
+                                    }
+                                } @ else {
+                                    td { (competitor.name) }
+                                }
+                                td { (match &competitor.pr_3x3_avg { Some(time) => format_time(time), None => "".to_string()}) }
+                            }
                         }
                     }
                 }
