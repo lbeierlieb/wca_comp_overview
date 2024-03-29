@@ -3,11 +3,33 @@ use rand::prelude::*;
 use regex::Regex;
 use reqwest::blocking::get;
 use serde::Deserialize;
-use std::{fs, ops::Add, time::Duration};
+use std::{fs, ops::Add, str::FromStr, time::Duration};
 use thiserror::Error;
 
 use clap::Parser;
 use scraper::{selectable::Selectable, Html, Selector};
+
+#[derive(Debug, Clone)]
+enum Source {
+    UnofficialAPI,
+    WCAwebsite,
+    Debug,
+}
+impl FromStr for Source {
+    type Err = WCOError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "wcawebsite" => Ok(Source::WCAwebsite),
+            "unofficialapi" => Ok(Source::UnofficialAPI),
+            "debug" => Ok(Source::Debug),
+            _ => Err(WCOError::ParsingError(format!(
+                "Invalid source specified: \"{}\"",
+                s
+            ))),
+        }
+    }
+}
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -20,9 +42,9 @@ struct Args {
     #[arg(short, long, default_value_t = String::new())]
     destination_directory: String,
 
-    /// Do not retrieve times from user profile, instead generate random times
-    #[arg(long, default_value_t = false)]
-    debug: bool,
+    /// Source where to retrieve PR averages from. Available: UnofficialAPI, WCAwebsite
+    #[arg(short, long, default_value = "UnofficialAPI")]
+    source: Source,
 
     /// Do not open generated report in system default browser
     #[arg(short, long, default_value_t = false)]
@@ -68,22 +90,21 @@ fn main() -> Result<(), WCOError> {
 
     let path = format!("{}test.html", args.destination_directory);
 
-    generate_report(&args.url, &path, args.debug)?;
+    generate_report(&args.url, &path, &args.source)?;
     if !args.no_browser {
         webbrowser::open(&path)?;
     }
     Ok(())
 }
 
-fn generate_report(competitors_url: &str, out_path: &str, debug: bool) -> Result<(), WCOError> {
+fn generate_report(competitors_url: &str, out_path: &str, source: &Source) -> Result<(), WCOError> {
     let competitors_html = Html::parse_document(&get(competitors_url)?.text()?);
     let competition_title = get_competition_title(&competitors_html)?;
     let mut competitors = parse_competitors(&competitors_html);
-    if !debug {
-        //retrieve_competitor_pr_avgs_html(&mut competitors)?;
-        retrieve_competitor_pr_avgs_json(&mut competitors)?;
-    } else {
-        set_random_competitor_pr_avgs(&mut competitors);
+    match source {
+        Source::UnofficialAPI => retrieve_competitor_pr_avgs_json(&mut competitors)?,
+        Source::WCAwebsite => retrieve_competitor_pr_avgs_html(&mut competitors)?,
+        Source::Debug => set_random_competitor_pr_avgs(&mut competitors),
     }
     let report = generate_report_html(&competition_title, &competitors);
     fs::write(out_path, report)?;
