@@ -2,6 +2,7 @@ use maud::html;
 use rand::prelude::*;
 use regex::Regex;
 use reqwest::blocking::get;
+use serde::Deserialize;
 use std::{fs, ops::Add, time::Duration};
 use thiserror::Error;
 
@@ -26,6 +27,23 @@ struct Args {
     /// Do not open generated report in system default browser
     #[arg(short, long, default_value_t = false)]
     no_browser: bool,
+}
+
+#[derive(Deserialize)]
+struct Person {
+    rank: Rank,
+}
+
+#[derive(Deserialize)]
+struct Rank {
+    averages: Vec<PR>,
+}
+
+#[allow(non_snake_case)]
+#[derive(Deserialize)]
+struct PR {
+    best: u32,
+    eventId: String,
 }
 
 #[derive(Debug, Clone)]
@@ -62,7 +80,8 @@ fn generate_report(competitors_url: &str, out_path: &str, debug: bool) -> Result
     let competition_title = get_competition_title(&competitors_html)?;
     let mut competitors = parse_competitors(&competitors_html);
     if !debug {
-        retrieve_competitor_pr_avgs_html(&mut competitors)?;
+        //retrieve_competitor_pr_avgs_html(&mut competitors)?;
+        retrieve_competitor_pr_avgs_json(&mut competitors)?;
     } else {
         set_random_competitor_pr_avgs(&mut competitors);
     }
@@ -131,6 +150,28 @@ fn parse_pr_3x3_avg_html(competitor_html: &Html) -> Result<Option<Duration>, WCO
         Some(time_str) => Ok(Some(parse_time(&time_str)?)),
         None => Ok(None),
     }
+}
+
+fn retrieve_competitor_pr_avgs_json(competitors: &mut [Competitor]) -> Result<(), WCOError> {
+    for competitor in competitors {
+        if let Some(id) = &mut competitor.wca_id {
+            let url = format!("https://raw.githubusercontent.com/robiningelbrecht/wca-rest-api/master/api/persons/{}.json", id);
+            let json: Person = serde_json::from_str(&get(url)?.text()?)?;
+            competitor.pr_3x3_avg = parse_pr_3x3_avg_json(&json);
+        }
+    }
+    Ok(())
+}
+
+fn parse_pr_3x3_avg_json(competitor_json: &Person) -> Option<Duration> {
+    competitor_json
+        .rank
+        .averages
+        .iter()
+        .filter(|pr| pr.eventId == "333")
+        .map(|pr| pr.best)
+        .map(|time| Duration::new(time as u64 / 100, (time % 100) * 10 * 1000 * 1000))
+        .next()
 }
 
 fn set_random_competitor_pr_avgs(competitors: &mut [Competitor]) {
@@ -281,4 +322,7 @@ pub enum WCOError {
 
     #[error("Network error: {0}")]
     ReqwestError(#[from] reqwest::Error),
+
+    #[error("JSON parsing error: {0}")]
+    JsonError(#[from] serde_json::Error),
 }
