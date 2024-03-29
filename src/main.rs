@@ -1,3 +1,4 @@
+use indicatif::ProgressBar;
 use maud::html;
 use rand::prelude::*;
 use regex::Regex;
@@ -101,11 +102,22 @@ fn generate_report(competitors_url: &str, out_path: &str, source: &Source) -> Re
     let competitors_html = Html::parse_document(&get(competitors_url)?.text()?);
     let competition_title = get_competition_title(&competitors_html)?;
     let mut competitors = parse_competitors(&competitors_html);
-    match source {
-        Source::UnofficialAPI => retrieve_competitor_pr_avgs_json(&mut competitors)?,
-        Source::WCAwebsite => retrieve_competitor_pr_avgs_html(&mut competitors)?,
-        Source::Debug => set_random_competitor_pr_avgs(&mut competitors),
+    let num_competitors = competitors.len() as u64;
+    println!(
+        r#"Found {} competitors for competition "{}""#,
+        num_competitors, competition_title
+    );
+    println!("Retrieving competitor PRs...");
+    let bar = ProgressBar::new(num_competitors);
+    for competitor in &mut competitors {
+        match source {
+            Source::UnofficialAPI => retrieve_competitor_pr_avg_json(competitor)?,
+            Source::WCAwebsite => retrieve_competitor_pr_avg_html(competitor)?,
+            Source::Debug => set_random_competitor_pr_avg(competitor),
+        }
+        bar.inc(1);
     }
+    bar.finish();
     let report = generate_report_html(&competition_title, &competitors);
     fs::write(out_path, report)?;
     Ok(())
@@ -148,13 +160,11 @@ fn parse_wca_id(profile_url: &str) -> Option<String> {
     re.captures(profile_url).map(|cap| cap[1].to_owned())
 }
 
-fn retrieve_competitor_pr_avgs_html(competitors: &mut [Competitor]) -> Result<(), WCOError> {
-    for competitor in competitors {
-        if let Some(id) = &mut competitor.wca_id {
-            let url = format!("https://www.worldcubeassociation.org/persons/{}", id);
-            let html = Html::parse_document(&get(url)?.text()?);
-            competitor.pr_3x3_avg = parse_pr_3x3_avg_html(&html)?;
-        }
+fn retrieve_competitor_pr_avg_html(competitor: &mut Competitor) -> Result<(), WCOError> {
+    if let Some(id) = &mut competitor.wca_id {
+        let url = format!("https://www.worldcubeassociation.org/persons/{}", id);
+        let html = Html::parse_document(&get(url)?.text()?);
+        competitor.pr_3x3_avg = parse_pr_3x3_avg_html(&html)?;
     }
     Ok(())
 }
@@ -173,13 +183,11 @@ fn parse_pr_3x3_avg_html(competitor_html: &Html) -> Result<Option<Duration>, WCO
     }
 }
 
-fn retrieve_competitor_pr_avgs_json(competitors: &mut [Competitor]) -> Result<(), WCOError> {
-    for competitor in competitors {
-        if let Some(id) = &mut competitor.wca_id {
-            let url = format!("https://raw.githubusercontent.com/robiningelbrecht/wca-rest-api/master/api/persons/{}.json", id);
-            let json: Person = serde_json::from_str(&get(url)?.text()?)?;
-            competitor.pr_3x3_avg = parse_pr_3x3_avg_json(&json);
-        }
+fn retrieve_competitor_pr_avg_json(competitor: &mut Competitor) -> Result<(), WCOError> {
+    if let Some(id) = &mut competitor.wca_id {
+        let url = format!("https://raw.githubusercontent.com/robiningelbrecht/wca-rest-api/master/api/persons/{}.json", id);
+        let json: Person = serde_json::from_str(&get(url)?.text()?)?;
+        competitor.pr_3x3_avg = parse_pr_3x3_avg_json(&json);
     }
     Ok(())
 }
@@ -195,19 +203,17 @@ fn parse_pr_3x3_avg_json(competitor_json: &Person) -> Option<Duration> {
         .next()
 }
 
-fn set_random_competitor_pr_avgs(competitors: &mut [Competitor]) {
+fn set_random_competitor_pr_avg(competitor: &mut Competitor) {
     let mut rng = rand::thread_rng();
-    for competitor in competitors {
-        if let Some(_) = &mut competitor.wca_id {
-            competitor.pr_3x3_avg = Some(
-                parse_time(&format!(
-                    "{}.{}",
-                    rng.gen_range(7..40),
-                    rng.gen_range(10..100)
-                ))
-                .expect("Generated times should not fail to parse"),
-            )
-        }
+    if let Some(_) = &mut competitor.wca_id {
+        competitor.pr_3x3_avg = Some(
+            parse_time(&format!(
+                "{}.{}",
+                rng.gen_range(7..40),
+                rng.gen_range(10..100)
+            ))
+            .expect("Generated times should not fail to parse"),
+        )
     }
 }
 
