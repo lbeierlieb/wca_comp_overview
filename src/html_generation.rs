@@ -12,11 +12,13 @@ pub fn generate_report_html(competition_title: &str, competitor_data: &[Competit
                 name: _,
                 wca_id: None,
                 pr_3x3_avg: _,
+                ..
             } => competitors_no_id.push(comp),
             Competitor {
                 name: _,
                 wca_id: Some(_),
                 pr_3x3_avg: None,
+                ..
             } => competitors_no_time.push(comp),
             _ => competitors_time.push(comp),
         }
