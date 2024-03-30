@@ -1,7 +1,12 @@
+use std::path::PathBuf;
+
 use crate::datastructures::Competitor;
 use plotters::prelude::*;
 
-pub fn plot(competitors: &[Competitor]) -> Result<(), Box<dyn std::error::Error>> {
+pub fn plot(
+    competitors: &[Competitor],
+    out_path: &PathBuf,
+) -> Result<(), Box<dyn std::error::Error>> {
     let times_sec: Vec<_> = competitors
         .iter()
         .filter_map(|comp| comp.pr_3x3_avg.map(|time| time.as_secs()))
@@ -15,7 +20,7 @@ pub fn plot(competitors: &[Competitor]) -> Result<(), Box<dyn std::error::Error>
     }
     let max_count = *counts.iter().max().unwrap_or(&0);
 
-    let root_area = BitMapBackend::new("histogram.png", (1000, 400)).into_drawing_area();
+    let root_area = BitMapBackend::new(out_path, (1000, 400)).into_drawing_area();
     root_area.fill(&WHITE)?;
 
     let mut ctx = ChartBuilder::on(&root_area)

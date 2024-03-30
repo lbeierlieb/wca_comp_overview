@@ -53,7 +53,7 @@ pub fn generate_report_html(competition_title: &str, competitor_data: &[Competit
                             b { (num_no_id) } ", who have never competed at a WCA event before"
                         }
                     }
-                    img src="histogram.png" {}
+                    img src="plots/hist333.png" {}
                     table {
                         tr {
                             th {
