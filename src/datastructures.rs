@@ -22,7 +22,7 @@ impl Competitor {
 }
 
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Event {
     Ev333,
     Ev222,
@@ -43,9 +43,8 @@ pub enum Event {
     Ev333mbf,
 }
 
-#[allow(dead_code)]
 impl Event {
-    fn pretty_name(&self) -> &'static str {
+    pub fn pretty_name(&self) -> &'static str {
         match self {
             Event::Ev333 => "3x3x3 Cube",
             Event::Ev222 => "2x2x2 Cube",
@@ -67,6 +66,7 @@ impl Event {
         }
     }
 
+    #[allow(dead_code)]
     fn code_name(&self) -> &'static str {
         match self {
             Event::Ev333 => "333",

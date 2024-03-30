@@ -1,4 +1,4 @@
-use crate::datastructures::Competitor;
+use crate::datastructures::{Competitor, Event};
 use maud::html;
 use std::time::Duration;
 
@@ -6,16 +6,13 @@ pub fn generate_report_html(competition_title: &str, competitor_data: &[Competit
     let mut competitors_no_id = vec![];
     let mut competitors_no_time = vec![];
     let mut competitors_time = vec![];
-    for comp in competitor_data {
+    let event_participating_competitors = competitor_data
+        .iter()
+        .filter(|comp| comp.events.contains(&Event::Ev333));
+    for comp in event_participating_competitors {
         match comp {
+            Competitor { wca_id: None, .. } => competitors_no_id.push(comp),
             Competitor {
-                name: _,
-                wca_id: None,
-                pr_3x3_avg: _,
-                ..
-            } => competitors_no_id.push(comp),
-            Competitor {
-                name: _,
                 wca_id: Some(_),
                 pr_3x3_avg: None,
                 ..
@@ -30,6 +27,7 @@ pub fn generate_report_html(competition_title: &str, competitor_data: &[Competit
     let mut all_competitors = competitors_time;
     all_competitors.append(&mut competitors_no_time);
     all_competitors.append(&mut competitors_no_id);
+    let evname = Event::Ev333.pretty_name();
     let markup = html! {
         html {
             head {
@@ -42,17 +40,17 @@ pub fn generate_report_html(competition_title: &str, competitor_data: &[Competit
                         (competition_title)
                     }
                     p {
-                        "There is a total of " b { (all_competitors.len()) } " competitors registered. They consists of:"
+                        "Of the " (competitor_data.len()) " competitors, there is a total of " b { (all_competitors.len()) } " participating in " (evname) " registered. They consists of:"
                     }
                     ul {
                         li {
-                            b { (num_time) } ", who have competed in 3x3 before"
+                            b { (num_time) } ", who have competed in " (evname) " before"
                         }
                         li {
-                            b { (num_no_time) } ", who have competed at WCA events before, but not in 3x3"
+                            b { (num_no_time) } ", who have competed at WCA events before, but not in " (evname)
                         }
                         li {
-                            b { (num_no_id) } ", who have never competed at an WCA event before"
+                            b { (num_no_id) } ", who have never competed at a WCA event before"
                         }
                     }
                     img src="histogram.png" {}
@@ -62,7 +60,7 @@ pub fn generate_report_html(competition_title: &str, competitor_data: &[Competit
                                 "Competitor"
                             }
                             th {
-                                "3x3 PR Average"
+                                (evname) " PR Ao5"
                             }
                         }
                         @for competitor in all_competitors {
