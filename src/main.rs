@@ -1,5 +1,6 @@
 use indicatif::ProgressBar;
 use maud::html;
+use plotters::prelude::*;
 use rand::prelude::*;
 use regex::Regex;
 use reqwest::blocking::get;
@@ -120,6 +121,10 @@ fn generate_report(competitors_url: &str, out_path: &str, source: &Source) -> Re
     bar.finish();
     let report = generate_report_html(&competition_title, &competitors);
     fs::write(out_path, report)?;
+    match plot(&competitors) {
+        Err(e) => return Err(WCOError::PlottingError(e.to_string())),
+        _ => {}
+    }
     Ok(())
 }
 
@@ -268,6 +273,7 @@ fn generate_report_html(competition_title: &str, competitor_data: &[Competitor])
                             b { (num_no_id) } ", who have never competed at an WCA event before"
                         }
                     }
+                    img src="histogram.png" {}
                     table {
                         tr {
                             th {
@@ -339,6 +345,46 @@ fn format_time(time: &Duration) -> String {
     }
 }
 
+fn plot(competitors: &[Competitor]) -> Result<(), Box<dyn std::error::Error>> {
+    let times_sec: Vec<_> = competitors
+        .iter()
+        .filter_map(|comp| comp.pr_3x3_avg.map(|time| time.as_secs()))
+        .collect();
+    let fastest_time = *times_sec.iter().min().unwrap_or(&0);
+    let slowest_time = *times_sec.iter().max().unwrap_or(&0);
+    let bar_count = slowest_time - fastest_time + 1;
+    let mut counts = vec![0u64; bar_count as usize];
+    for time in times_sec {
+        counts[(time - fastest_time) as usize] += 1;
+    }
+    let max_count = *counts.iter().max().unwrap_or(&0);
+
+    let root_area = BitMapBackend::new("histogram.png", (1000, 400)).into_drawing_area();
+    root_area.fill(&WHITE)?;
+
+    let mut ctx = ChartBuilder::on(&root_area)
+        .set_label_area_size(LabelAreaPosition::Left, 40)
+        .set_label_area_size(LabelAreaPosition::Bottom, 40)
+        .caption("3x3 PR Ao5 Histogram", ("sans-serif", 40))
+        .build_cartesian_2d((fastest_time..slowest_time).into_segmented(), 0..max_count)?;
+
+    ctx.configure_mesh()
+        .x_desc("Solve time [s]")
+        .y_desc("Count")
+        .draw()?;
+
+    ctx.draw_series((fastest_time..).zip(counts.iter()).map(|(x, y)| {
+        let x0 = SegmentValue::Exact(x);
+        let x1 = SegmentValue::Exact(x + 1);
+        let mut bar = Rectangle::new([(x0, 0), (x1, *y)], BLUE.filled());
+        bar.set_margin(0, 0, 5, 5);
+        bar
+    }))?;
+
+    root_area.present()?;
+    Ok(())
+}
+
 #[derive(Error, Debug)]
 pub enum WCOError {
     #[error("Invalid input: {0}")]
@@ -352,4 +398,7 @@ pub enum WCOError {
 
     #[error("JSON parsing error: {0}")]
     JsonError(#[from] serde_json::Error),
+
+    #[error("Plotting error: {0}")]
+    PlottingError(String),
 }
