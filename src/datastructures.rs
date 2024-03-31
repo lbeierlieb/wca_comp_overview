@@ -22,7 +22,7 @@ impl Competitor {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum Event {
     Ev333,
     Ev222,
@@ -31,7 +31,7 @@ pub enum Event {
     Ev666,
     Ev777,
     Ev333bf,
-    Ev333fm,
+    //Ev333fm,
     Ev333oh,
     EvClock,
     EvMinx,
@@ -40,7 +40,7 @@ pub enum Event {
     EvSq1,
     Ev444bf,
     Ev555bf,
-    Ev333mbf,
+    //Ev333mbf,
 }
 
 impl Event {
@@ -53,7 +53,7 @@ impl Event {
             Event::Ev666 => "6x6x6 Cube",
             Event::Ev777 => "7x7x7 Cube",
             Event::Ev333bf => "3x3x3 Blindfolded",
-            Event::Ev333fm => "3x3x3 Fewest Moves",
+            //Event::Ev333fm => "3x3x3 Fewest Moves",
             Event::Ev333oh => "3x3x3 One-Handed",
             Event::EvClock => "Clock",
             Event::EvMinx => "Megaminx",
@@ -62,7 +62,7 @@ impl Event {
             Event::EvSq1 => "Square-1",
             Event::Ev444bf => "4x4x4 Blindfolded",
             Event::Ev555bf => "5x5x5 Blindfolded",
-            Event::Ev333mbf => "3x3x3 Multi-Blind",
+            //Event::Ev333mbf => "3x3x3 Multi-Blind",
         }
     }
 
@@ -75,7 +75,7 @@ impl Event {
             Event::Ev666 => "666",
             Event::Ev777 => "777",
             Event::Ev333bf => "333bf",
-            Event::Ev333fm => "333fm",
+            //Event::Ev333fm => "333fm",
             Event::Ev333oh => "333oh",
             Event::EvClock => "clock",
             Event::EvMinx => "minx",
@@ -84,7 +84,14 @@ impl Event {
             Event::EvSq1 => "sq1",
             Event::Ev444bf => "444bf",
             Event::Ev555bf => "555bf",
-            Event::Ev333mbf => "333mbf",
+            //Event::Ev333mbf => "333mbf",
+        }
+    }
+
+    pub fn use_average(&self) -> bool {
+        match self {
+            Event::Ev333bf | Event::Ev444bf | Event::Ev555bf => false,
+            _ => true,
         }
     }
 }
@@ -101,7 +108,7 @@ impl TryFrom<&str> for Event {
             "666" => Ok(Event::Ev666),
             "777" => Ok(Event::Ev777),
             "333bf" => Ok(Event::Ev333bf),
-            "333fm" => Ok(Event::Ev333fm),
+            //"333fm" => Ok(Event::Ev333fm),
             "333oh" => Ok(Event::Ev333oh),
             "clock" => Ok(Event::EvClock),
             "minx" => Ok(Event::EvMinx),
@@ -110,7 +117,7 @@ impl TryFrom<&str> for Event {
             "sq1" => Ok(Event::EvSq1),
             "444bf" => Ok(Event::Ev444bf),
             "555bf" => Ok(Event::Ev555bf),
-            "333mbf" => Ok(Event::Ev333mbf),
+            //"333mbf" => Ok(Event::Ev333mbf),
             _ => Err(WCOError::ParsingError(format!(
                 r#"Failed to parse "{}" into an event"#,
                 value

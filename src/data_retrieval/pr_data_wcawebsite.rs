@@ -4,20 +4,30 @@ use reqwest::blocking::get;
 use scraper::{Html, Selector};
 use std::{ops::Add, time::Duration};
 
-pub fn retrieve_competitor_pr_avg_html(competitor: &mut Competitor) -> Result<(), WCOError> {
+pub fn retrieve_competitor_pr_avg_html(
+    competitor: &mut Competitor,
+    event: Event,
+) -> Result<(), WCOError> {
     if let Some(id) = &mut competitor.wca_id {
         let url = format!("https://www.worldcubeassociation.org/persons/{}", id);
         let html = Html::parse_document(&get(url)?.text()?);
-        if let Some(avg) = parse_pr_3x3_avg_html(&html)? {
+        if let Some(avg) = parse_pr_html(&html, event)? {
             competitor.personal_records.insert(Event::Ev333, avg);
         }
     }
     Ok(())
 }
 
-fn parse_pr_3x3_avg_html(competitor_html: &Html) -> Result<Option<Duration>, WCOError> {
-    let selector = Selector::parse(r#"a[href="/results/rankings/333/average"]"#)
-        .expect("Parsing known selector should not fail");
+fn parse_pr_html(competitor_html: &Html, event: Event) -> Result<Option<Duration>, WCOError> {
+    let selector = Selector::parse(&format!(
+        r#"a[href="/results/rankings/{}/{}"]"#,
+        event.code_name(),
+        match event.use_average() {
+            true => "average",
+            false => "single",
+        }
+    ))
+    .expect("Parsing known selector should not fail");
 
     match competitor_html
         .select(&selector)

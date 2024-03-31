@@ -7,17 +7,16 @@ use std::{fs, str::FromStr};
 
 use clap::Parser;
 
+use css_generation::css_content;
 use data_retrieval::competitorslist::get_competition_title;
 use data_retrieval::competitorslist::parse_competitors;
-use data_retrieval::pr_data_random::set_random_competitor_pr_avg;
-use data_retrieval::pr_data_unofficialapi::retrieve_competitor_prs;
+use data_retrieval::pr_data_random::set_random_competitor_pr;
+use data_retrieval::pr_data_unofficialapi::retrieve_competitor_pr;
 use data_retrieval::pr_data_wcawebsite::retrieve_competitor_pr_avg_html;
+use datastructures::Event;
 use html_generation::generate_report_html;
 use plot::plot;
 use wcoerror::WCOError;
-
-use crate::css_generation::css_content;
-use crate::datastructures::Event;
 
 mod css_generation;
 mod data_retrieval;
@@ -109,11 +108,14 @@ fn generate_report(args: &Args) -> Result<PathBuf, WCOError> {
     println!("Retrieving competitor PRs...");
     let bar = ProgressBar::new(num_competitors);
     for competitor in &mut competitors {
-        match args.source {
-            Source::UnofficialAPI => retrieve_competitor_prs(competitor)?,
-            Source::WCAwebsite => retrieve_competitor_pr_avg_html(competitor)?,
-            Source::Debug => set_random_competitor_pr_avg(competitor),
+        for event in competitor.events.clone().into_iter() {
+            match args.source {
+                Source::UnofficialAPI => retrieve_competitor_pr(competitor, event)?,
+                Source::WCAwebsite => retrieve_competitor_pr_avg_html(competitor, event)?,
+                Source::Debug => set_random_competitor_pr(competitor, event),
+            }
         }
+        dbg!(&competitor);
         bar.inc(1);
     }
     bar.finish();
