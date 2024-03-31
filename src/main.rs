@@ -14,7 +14,6 @@ use data_retrieval::competitorslist::parse_competitors;
 use data_retrieval::pr_data_random::set_random_competitor_pr;
 use data_retrieval::pr_data_unofficialapi::retrieve_competitor_pr;
 use data_retrieval::pr_data_wcawebsite::retrieve_competitor_pr_avg_html;
-use datastructures::Event;
 use html_generation::generate_report_html;
 use plot::plot;
 use wcoerror::WCOError;
@@ -124,15 +123,15 @@ fn generate_report(args: &Args) -> Result<PathBuf, WCOError> {
         bar.inc(1);
     }
     bar.finish();
-    let report = generate_report_html(&competition_title, &competitors, &Event::Ev333);
-    let report_index = report_dir.join("index.html");
-    fs::write(&report_index, report)?;
-    fs::write(report_dir.join("styles.css"), css_content())?;
     let plot_dir = report_dir.join("plots");
     if !plot_dir.exists() {
         fs::create_dir(&plot_dir)?;
     }
     for event in all_events {
+        let report = generate_report_html(&competition_title, &competitors, &event);
+        let report_file = report_dir.join(format!("{}.html", event.code_name()));
+        fs::write(&report_file, report)?;
+
         match plot(
             &competitors,
             &event,
@@ -142,7 +141,8 @@ fn generate_report(args: &Args) -> Result<PathBuf, WCOError> {
             _ => {}
         }
     }
-    Ok(report_index)
+    fs::write(report_dir.join("styles.css"), css_content())?;
+    Ok(report_dir)
 }
 
 fn create_foldername(comp_name: &str, debug: bool) -> String {

@@ -35,13 +35,13 @@ pub fn generate_report_html(
     let markup = html! {
         html {
             head {
-                title { "My Table" }
+                title { (event.code_name()) "@" (competition_title) }
                 link rel="stylesheet" type="text/css" href="styles.css" {}
             }
             body {
                 div class="container" {
                     h1 {
-                        (competition_title)
+                        (competition_title) ": " (evname)
                     }
                     p {
                         "Of the " (competitor_data.len()) " competitors, there is a total of " b { (all_competitors.len()) } " participating in " (evname) " registered. They consists of:"
@@ -64,7 +64,7 @@ pub fn generate_report_html(
                                 "Competitor"
                             }
                             th {
-                                (evname) " PR Ao5"
+                                (evname) " PR " ( if event.use_average() { "Average" } else { "Single" })
                             }
                         }
                         @for competitor in all_competitors {
