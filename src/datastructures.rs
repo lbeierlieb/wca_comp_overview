@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use crate::wcoerror::WCOError;
 
@@ -7,7 +7,7 @@ pub struct Competitor {
     pub name: String,
     pub wca_id: Option<String>,
     pub events: Vec<Event>,
-    pub pr_3x3_avg: Option<Duration>,
+    pub personal_records: HashMap<Event, Duration>,
 }
 
 impl Competitor {
@@ -16,13 +16,13 @@ impl Competitor {
             name,
             wca_id,
             events,
-            pr_3x3_avg: None,
+            personal_records: HashMap::new(),
         }
     }
 }
 
 #[allow(dead_code)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum Event {
     Ev333,
     Ev222,
@@ -66,8 +66,7 @@ impl Event {
         }
     }
 
-    #[allow(dead_code)]
-    fn code_name(&self) -> &'static str {
+    pub fn code_name(&self) -> &'static str {
         match self {
             Event::Ev333 => "333",
             Event::Ev222 => "222",

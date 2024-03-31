@@ -10,13 +10,14 @@ use clap::Parser;
 use data_retrieval::competitorslist::get_competition_title;
 use data_retrieval::competitorslist::parse_competitors;
 use data_retrieval::pr_data_random::set_random_competitor_pr_avg;
-use data_retrieval::pr_data_unofficialapi::retrieve_competitor_pr_avg_json;
+use data_retrieval::pr_data_unofficialapi::retrieve_competitor_prs;
 use data_retrieval::pr_data_wcawebsite::retrieve_competitor_pr_avg_html;
 use html_generation::generate_report_html;
 use plot::plot;
 use wcoerror::WCOError;
 
 use crate::css_generation::css_content;
+use crate::datastructures::Event;
 
 mod css_generation;
 mod data_retrieval;
@@ -109,14 +110,14 @@ fn generate_report(args: &Args) -> Result<PathBuf, WCOError> {
     let bar = ProgressBar::new(num_competitors);
     for competitor in &mut competitors {
         match args.source {
-            Source::UnofficialAPI => retrieve_competitor_pr_avg_json(competitor)?,
+            Source::UnofficialAPI => retrieve_competitor_prs(competitor)?,
             Source::WCAwebsite => retrieve_competitor_pr_avg_html(competitor)?,
             Source::Debug => set_random_competitor_pr_avg(competitor),
         }
         bar.inc(1);
     }
     bar.finish();
-    let report = generate_report_html(&competition_title, &competitors);
+    let report = generate_report_html(&competition_title, &competitors, &Event::Ev333);
     let report_index = report_dir.join("index.html");
     fs::write(&report_index, report)?;
     fs::write(report_dir.join("styles.css"), css_content())?;
@@ -124,7 +125,7 @@ fn generate_report(args: &Args) -> Result<PathBuf, WCOError> {
     if !plot_dir.exists() {
         fs::create_dir(&plot_dir)?;
     }
-    match plot(&competitors, &plot_dir.join("hist333.png")) {
+    match plot(&competitors, &Event::Ev333, &plot_dir.join("hist333.png")) {
         Err(e) => return Err(WCOError::PlottingError(e.to_string())),
         _ => {}
     }

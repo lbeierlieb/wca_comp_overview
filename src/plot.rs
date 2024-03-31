@@ -1,15 +1,16 @@
 use std::path::PathBuf;
 
-use crate::datastructures::Competitor;
+use crate::datastructures::{Competitor, Event};
 use plotters::prelude::*;
 
 pub fn plot(
     competitors: &[Competitor],
+    event: &Event,
     out_path: &PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let times_sec: Vec<_> = competitors
         .iter()
-        .filter_map(|comp| comp.pr_3x3_avg.map(|time| time.as_secs()))
+        .filter_map(|comp| comp.personal_records.get(event).map(|time| time.as_secs()))
         .collect();
     let fastest_time = *times_sec.iter().min().unwrap_or(&0);
     let slowest_time = *times_sec.iter().max().unwrap_or(&0);

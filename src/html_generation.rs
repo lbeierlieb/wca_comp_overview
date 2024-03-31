@@ -2,32 +2,36 @@ use crate::datastructures::{Competitor, Event};
 use maud::html;
 use std::time::Duration;
 
-pub fn generate_report_html(competition_title: &str, competitor_data: &[Competitor]) -> String {
+pub fn generate_report_html(
+    competition_title: &str,
+    competitor_data: &[Competitor],
+    event: &Event,
+) -> String {
     let mut competitors_no_id = vec![];
     let mut competitors_no_time = vec![];
     let mut competitors_time = vec![];
     let event_participating_competitors = competitor_data
         .iter()
-        .filter(|comp| comp.events.contains(&Event::Ev333));
+        .filter(|comp| comp.events.contains(event));
     for comp in event_participating_competitors {
         match comp {
             Competitor { wca_id: None, .. } => competitors_no_id.push(comp),
             Competitor {
                 wca_id: Some(_),
-                pr_3x3_avg: None,
+                personal_records: hmap,
                 ..
-            } => competitors_no_time.push(comp),
+            } if !hmap.contains_key(event) => competitors_no_time.push(comp),
             _ => competitors_time.push(comp),
         }
     }
     let num_time = competitors_time.len();
     let num_no_time = competitors_no_time.len();
     let num_no_id = competitors_no_id.len();
-    competitors_time.sort_by_key(|comp| comp.pr_3x3_avg);
+    competitors_time.sort_by_key(|comp| comp.personal_records.get(event));
     let mut all_competitors = competitors_time;
     all_competitors.append(&mut competitors_no_time);
     all_competitors.append(&mut competitors_no_id);
-    let evname = Event::Ev333.pretty_name();
+    let evname = event.pretty_name();
     let markup = html! {
         html {
             head {
@@ -53,7 +57,7 @@ pub fn generate_report_html(competition_title: &str, competitor_data: &[Competit
                             b { (num_no_id) } ", who have never competed at a WCA event before"
                         }
                     }
-                    img src="plots/hist333.png" {}
+                    img src=(format!("plots/hist{}.png", event.code_name())) {}
                     table {
                         tr {
                             th {
@@ -74,7 +78,7 @@ pub fn generate_report_html(competition_title: &str, competitor_data: &[Competit
                                 } @ else {
                                     td { (competitor.name) }
                                 }
-                                td { (match &competitor.pr_3x3_avg { Some(time) => format_time(time), None => "".to_string()}) }
+                                td { (match &competitor.personal_records.get(event) { Some(time) => format_time(time), None => "".to_string()}) }
                             }
                         }
                     }

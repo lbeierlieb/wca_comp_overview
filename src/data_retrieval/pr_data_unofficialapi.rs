@@ -1,4 +1,4 @@
-use crate::datastructures::Competitor;
+use crate::datastructures::{Competitor, Event};
 use crate::wcoerror::WCOError;
 use reqwest::blocking::get;
 use serde::Deserialize;
@@ -21,11 +21,13 @@ struct PR {
     eventId: String,
 }
 
-pub fn retrieve_competitor_pr_avg_json(competitor: &mut Competitor) -> Result<(), WCOError> {
+pub fn retrieve_competitor_prs(competitor: &mut Competitor) -> Result<(), WCOError> {
     if let Some(id) = &mut competitor.wca_id {
         let url = format!("https://raw.githubusercontent.com/robiningelbrecht/wca-rest-api/master/api/persons/{}.json", id);
         let json: Person = serde_json::from_str(&get(url)?.text()?)?;
-        competitor.pr_3x3_avg = parse_pr_3x3_avg_json(&json);
+        if let Some(avg) = parse_pr_3x3_avg_json(&json) {
+            competitor.personal_records.insert(Event::Ev333, avg);
+        }
     }
     Ok(())
 }
