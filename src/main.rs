@@ -115,7 +115,6 @@ fn generate_report(args: &Args) -> Result<PathBuf, WCOError> {
                 Source::Debug => set_random_competitor_pr(competitor, event),
             }
         }
-        dbg!(&competitor);
         bar.inc(1);
     }
     bar.finish();
