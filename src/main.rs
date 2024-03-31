@@ -152,7 +152,7 @@ fn create_foldername(comp_name: &str, debug: bool) -> String {
         .collect::<String>();
     let now = chrono::Local::now();
     format!(
-        "{}-{}_{}_{}__{}_{}{}",
+        "{}-{}_{:0>2}_{:0>2}__{:0>2}_{:0>2}{}",
         pathfriendly_name,
         now.year(),
         now.month(),
