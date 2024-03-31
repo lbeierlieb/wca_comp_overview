@@ -27,7 +27,17 @@ pub fn plot(
     let mut ctx = ChartBuilder::on(&root_area)
         .set_label_area_size(LabelAreaPosition::Left, 40)
         .set_label_area_size(LabelAreaPosition::Bottom, 40)
-        .caption("3x3 PR Ao5 Histogram", ("sans-serif", 40))
+        .caption(
+            format!(
+                "{} PR {} Histogram",
+                event.pretty_name(),
+                match event.use_average() {
+                    true => "Average",
+                    false => "Single",
+                }
+            ),
+            ("sans-serif", 40),
+        )
         .build_cartesian_2d((fastest_time..slowest_time).into_segmented(), 0..max_count)?;
 
     ctx.configure_mesh()

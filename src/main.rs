@@ -2,6 +2,7 @@ use chrono::prelude::*;
 use indicatif::ProgressBar;
 use reqwest::blocking::get;
 use scraper::Html;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::{fs, str::FromStr};
 
@@ -25,7 +26,7 @@ mod html_generation;
 mod plot;
 mod wcoerror;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum Source {
     UnofficialAPI,
     WCAwebsite,
@@ -89,7 +90,10 @@ fn generate_report(args: &Args) -> Result<PathBuf, WCOError> {
     let competition_title = get_competition_title(&competitors_html)?;
     println!(r#"Found competition "{}""#, competition_title);
     let parent_dir = PathBuf::from(&args.destination_directory).canonicalize()?;
-    let report_dir = parent_dir.join(create_foldername(&competition_title));
+    let report_dir = parent_dir.join(create_foldername(
+        &competition_title,
+        args.source == Source::Debug,
+    ));
     if report_dir.exists() {
         println!(
             "Target folder {:?} already exists, overwriting contents",
@@ -106,6 +110,7 @@ fn generate_report(args: &Args) -> Result<PathBuf, WCOError> {
         num_competitors, competition_title
     );
     println!("Retrieving competitor PRs...");
+    let mut all_events = HashSet::new();
     let bar = ProgressBar::new(num_competitors);
     for competitor in &mut competitors {
         for event in competitor.events.clone().into_iter() {
@@ -114,6 +119,7 @@ fn generate_report(args: &Args) -> Result<PathBuf, WCOError> {
                 Source::WCAwebsite => retrieve_competitor_pr_avg_html(competitor, event)?,
                 Source::Debug => set_random_competitor_pr(competitor, event),
             }
+            all_events.insert(event);
         }
         bar.inc(1);
     }
@@ -126,26 +132,36 @@ fn generate_report(args: &Args) -> Result<PathBuf, WCOError> {
     if !plot_dir.exists() {
         fs::create_dir(&plot_dir)?;
     }
-    match plot(&competitors, &Event::Ev333, &plot_dir.join("hist333.png")) {
-        Err(e) => return Err(WCOError::PlottingError(e.to_string())),
-        _ => {}
+    for event in all_events {
+        match plot(
+            &competitors,
+            &event,
+            &plot_dir.join(format!("hist{}.png", event.code_name())),
+        ) {
+            Err(e) => return Err(WCOError::PlottingError(e.to_string())),
+            _ => {}
+        }
     }
     Ok(report_index)
 }
 
-fn create_foldername(comp_name: &str) -> String {
+fn create_foldername(comp_name: &str, debug: bool) -> String {
     let pathfriendly_name = comp_name
         .chars()
         .filter(|c| c.is_alphanumeric())
         .collect::<String>();
     let now = chrono::Local::now();
     format!(
-        "{}-{}_{}_{}__{}_{}",
+        "{}-{}_{}_{}__{}_{}{}",
         pathfriendly_name,
         now.year(),
         now.month(),
         now.day(),
         now.hour(),
-        now.minute()
+        now.minute(),
+        match debug {
+            true => "_DEBUG",
+            false => "",
+        }
     )
 }
