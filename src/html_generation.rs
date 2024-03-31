@@ -2,7 +2,7 @@ use crate::datastructures::{Competitor, Event};
 use maud::html;
 use std::time::Duration;
 
-pub fn generate_report_html(
+pub fn generate_event_html(
     competition_title: &str,
     competitor_data: &[Competitor],
     event: &Event,
@@ -97,4 +97,71 @@ fn format_time(time: &Duration) -> String {
         0 => format!("{}.{:0>2}", sec, subsec),
         _ => format!("{}:{:0>2}.{:0>2}", min, sec, subsec),
     }
+}
+
+pub fn generate_index_html(
+    competition_title: &str,
+    events: &[Event],
+    competitors: &[Competitor],
+) -> String {
+    let competitor_count = competitors.len();
+    let event_count = events.len();
+    let returner_count = competitors
+        .iter()
+        .filter(|comp| comp.wca_id.is_some())
+        .count();
+    let newcomer_count = competitor_count - returner_count;
+    let markup = html! {
+        html {
+            head {
+                title { (competition_title) " - Competitor Overview" }
+                link rel="stylesheet" type="text/css" href="styles.css" {}
+            }
+            body {
+                div class="container" {
+                    h1 { (competition_title) " - Competitor Overview" }
+                    p {
+                        "There is a total of " b { (competitor_count) } " competitors registered across " b { (event_count) } " events. "
+                        "The competitors consists of " b { (newcomer_count) } " newcomers and " b { (returner_count) } " returners."
+                    }
+                    p {
+                        "The following table gives an overview of the offered events. " i { "Total participant count" } " describes "
+                        "how many of the competitors are participating in the respective event. "
+                        i { "Available personal records" } " indicates how many of the participants have a WCA profile and a personal "
+                        " record for this event. Details about all the PRs for a event can be viewed by clicking on the respective "
+                        "event name."
+                    }
+                    table {
+                        tr {
+                            th {
+                                "Event"
+                            }
+                            th {
+                                "Total participant count"
+                            }
+                            th {
+                                "Available personal records"
+                            }
+                        }
+                        @for event in events {
+                            tr {
+                                td {
+                                    a href=(format!("{}.html", event.code_name())) {
+                                        ( event.pretty_name())
+                                    }
+                                }
+                                td {
+                                    (competitors.iter().filter(|comp| comp.events.contains(event)).count())
+                                }
+                                td {
+                                    (competitors.iter().filter(|comp| comp.personal_records.contains_key(event)).count())
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    };
+    markup.into_string()
 }
