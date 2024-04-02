@@ -60,6 +60,7 @@ pub fn generate_event_html(
                     img src=(format!("plots/hist{}.png", event.code_name())) {}
                     table {
                         tr {
+                            th {}
                             th {
                                 "Competitor"
                             }
@@ -67,8 +68,9 @@ pub fn generate_event_html(
                                 (evname) " PR " ( if event.use_average() { "Average" } else { "Single" })
                             }
                         }
-                        @for competitor in all_competitors {
+                        @for (rank, competitor) in all_competitors.iter().enumerate() {
                             tr {
+                                td { (match &competitor.personal_records.get(event) { Some(_) => (rank+1).to_string(), None => "".to_string()}) }
                                 @if let Some(id) = &competitor.wca_id {
                                     td {
                                         a target="_blank" href=(format!("https://www.worldcubeassociation.org/persons/{}", id)) {
