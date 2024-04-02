@@ -106,8 +106,10 @@ pub fn generate_index_html(
     events: &[Event],
     competitors: &[Competitor],
 ) -> String {
+    let mut sorted_events: Vec<_> = events.iter().collect();
+    sorted_events.sort();
     let competitor_count = competitors.len();
-    let event_count = events.len();
+    let event_count = sorted_events.len();
     let returner_count = competitors
         .iter()
         .filter(|comp| comp.wca_id.is_some())
@@ -145,7 +147,7 @@ pub fn generate_index_html(
                                 "Available personal records"
                             }
                         }
-                        @for event in events {
+                        @for event in sorted_events {
                             tr {
                                 td {
                                     a href=(format!("{}.html", event.code_name())) {

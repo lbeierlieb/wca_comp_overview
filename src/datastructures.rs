@@ -22,7 +22,7 @@ impl Competitor {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, PartialOrd, Ord)]
 pub enum Event {
     Ev333,
     Ev222,
