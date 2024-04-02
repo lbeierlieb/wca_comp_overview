@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::datastructures::{Competitor, Event};
-use plotters::prelude::*;
+use plotters::{prelude::*, style::full_palette::GREY};
 
 pub fn plot(
     competitors: &[Competitor],
@@ -22,7 +22,7 @@ pub fn plot(
     let max_count = *counts.iter().max().unwrap_or(&0);
 
     let root_area = BitMapBackend::new(out_path, (1000, 400)).into_drawing_area();
-    root_area.fill(&WHITE)?;
+    root_area.fill(&GREY)?;
 
     let mut ctx = ChartBuilder::on(&root_area)
         .set_label_area_size(LabelAreaPosition::Left, 40)
