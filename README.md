@@ -12,16 +12,18 @@ With competitions often having a hundred or more competitors, it is impractical 
 
 ## Usage
 ### Basic usages
-Pass the URL to the competitor page of an upcoming competition.
+Pass the URL to the registrations page of an upcoming competition.
 ```
-$ wca_comp_overview <URL to WCA competitor page>
+$ wca_comp_overview <URL to registrations page>
 ```
-For example (HessenMiniOpen2024 will take/takes/took place at May 10th, 2024. Afterwards, the competitor page will not be available anymore)
+For example: 
 ```
 $ wca_comp_overview https://www.worldcubeassociation.org/competitions/HessenMiniOpen2024/registrations
 ```
+Note: HessenMiniOpen2024 will take/takes/took place at May 10th, 2024. Afterwards, this registrations page will not be available anymore.
+
 The application will load and parse the competitors from the page and then load their PRs.
-This can take a while, so a progress bar displays the progress.
+This can take a while, so a progress bar displays the status.
 
 ![terminal](readme_imgs/terminal.jpg)
 
@@ -39,4 +41,13 @@ By clicking on the event name in the table, a dedicated page opens for this even
 ![pyram](readme_imgs/pyram.png)
 
 ### Commandline options
-TODO
+| short    | long    | description    |
+|---------------- | --------------- | --------------- |
+| `-h`         | `--help`       | Show information about commandline options.    |
+| `-d`         | `--destination-directory`       | Specify an existing folder that to report should be saved in. If not specified, the current working directory is used.    |
+| `-s`         | `--source`     | Pass `unofficialapi` to load PR data from the unofficial WCA API hosted on [github](https://github.com/robiningelbrecht/wca-rest-api). Tends to be the faster option but might not be perfectly up to date (updated once a day). Pass `wcawebsite` to retrieve PRs from the WCA website directly. `unofficialapi` is used by default.   |
+| `-n`         | `--no-browser` | Do not open the generated report in the default system browser.|
+
+## Limitations
+Currently, the WCA events **3x3x3 Fewest Moves** and **3x3x3 Multi-Blind** are ignored, because their scores differ from the others' "Solve time, the faster the better".
+Supporting them requires special handling in a few places, which is currently not implemented but might be added in the future.
