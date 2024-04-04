@@ -10,6 +10,15 @@ With competitions often having a hundred or more competitors, it is impractical 
 
 **wca_comp_overview** uses the available data and automated processing to generate a report about the personal records (PRs) of the competitors in each event.
 
+## Installation
+Currently, the only option for installation is cloning this repository and building it yourself.
+This requires a local [rust installation](https://www.rust-lang.org/tools/install).
+```
+$ git clone https://github.com/lbeierlieb/wca_comp_overview.git
+$ cd wca_comp_overview
+$ cargo build --release
+```
+
 ## Usage
 ### Basic usages
 Pass the URL to the registrations page of an upcoming competition.
